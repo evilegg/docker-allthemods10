@@ -29,3 +29,20 @@ dist:
 		--platform linux/amd64,linux/arm64 \
 		-t $(IMAGE):$(TAG) \
 		--push .
+
+# ── named version targets ─────────────────────────────────────────────────────
+# make <name>       — build for local architecture
+# make dist-<name>  — build for all architectures and push
+
+define VERSION_template
+.PHONY: $(1) dist-$(1)
+$(1):
+	$(MAKE) all SERVER_VERSION=$(2) FILE_ID=$(3) NEOFORGE_VERSION=$(4)
+dist-$(1):
+	$(MAKE) dist SERVER_VERSION=$(2) FILE_ID=$(3) NEOFORGE_VERSION=$(4)
+endef
+
+# name        server_version  file_id   neoforge_version
+$(eval $(call VERSION_template,10-5.5,5.5,7558573,21.1.219))
+$(eval $(call VERSION_template,10-6.0.1,6.0.1,7676054,21.1.219))  # verify NeoForge version
+$(eval $(call VERSION_template,10-6.1,6.1,7722629,21.1.219))
