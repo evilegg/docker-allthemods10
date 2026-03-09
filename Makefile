@@ -1,11 +1,14 @@
-IMAGE            ?= evilegg/all-the-mods
-IMAGE_DATA       ?= evilegg/all-the-mods-data
-SERVER_VERSION   ?= 6.1
-FILE_ID          ?= 7722629
-NEOFORGE_VERSION ?= 21.1.219
-TAG              ?= 10.$(SERVER_VERSION)
+IMAGE      ?= evilegg/all-the-mods
+IMAGE_DATA ?= evilegg/all-the-mods-data
 
 -include download-urls.mk
+
+# Build parameters — derived from DEFAULT_VERSION when not overridden on CLI.
+SERVER_VERSION   ?= $(VERSION_SRV_$(DEFAULT_VERSION))
+FILE_ID          ?= $(VERSION_FILE_$(DEFAULT_VERSION))
+NEOFORGE_VERSION ?= $(VERSION_NF_$(DEFAULT_VERSION))
+TAG              ?= 10.$(SERVER_VERSION)
+
 CDN_URL := $(DOWNLOAD_URL_$(FILE_ID))
 
 # Local pre-cached zip (not required; skipped in CI)
@@ -49,26 +52,19 @@ help: ## Show this help
 	@printf "Usage:\n  make <target>\n"
 	@printf "\nGeneral targets:\n"
 	@awk 'BEGIN {FS=":.*##"}; /^[a-zA-Z][a-zA-Z0-9_-]*:.*##/ {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf "\nVersion targets:\n"
-	@$(foreach n,$(VERSION_NAMES),\
-		printf "  %-22s Build ATM10 %s data+runtime for local arch\n" "$(n)" "$(subst 10-,,$(n))"; \
-		printf "  %-22s Build ATM10 %s data+runtime for all arches and push\n" "dist-$(n)" "$(subst 10-,,$(n))";)
+	@printf "\nVersion targets (defined in download-urls.mk):\n"
+	@$(foreach v,$(VERSIONS),\
+		printf "  %-22s Build ATM10 %s data+runtime for local arch\n" "$(v)" "$(VERSION_SRV_$(v))"; \
+		printf "  %-22s Build ATM10 %s data+runtime for all arches and push\n" "dist-$(v)" "$(VERSION_SRV_$(v))";)
 
-# ── named version targets ─────────────────────────────────────────────────────
+# ── per-version targets (auto-generated from VERSIONS in download-urls.mk) ────
 
 define VERSION_template
 .PHONY: $(1) dist-$(1)
 $(1):
-	$(MAKE) all SERVER_VERSION=$(2) FILE_ID=$(3) NEOFORGE_VERSION=$(4)
+	$(MAKE) all SERVER_VERSION=$(VERSION_SRV_$(1)) FILE_ID=$(VERSION_FILE_$(1)) NEOFORGE_VERSION=$(VERSION_NF_$(1))
 dist-$(1):
-	$(MAKE) dist SERVER_VERSION=$(2) FILE_ID=$(3) NEOFORGE_VERSION=$(4)
+	$(MAKE) dist SERVER_VERSION=$(VERSION_SRV_$(1)) FILE_ID=$(VERSION_FILE_$(1)) NEOFORGE_VERSION=$(VERSION_NF_$(1))
 endef
 
-# name        server_version  file_id   neoforge_version
-VERSION_NAMES :=
-$(eval $(call VERSION_template,10-5.5,5.5,7558573,21.1.219))
-$(eval VERSION_NAMES += 10-5.5)
-$(eval $(call VERSION_template,10-6.0.1,6.0.1,7676054,21.1.219))
-$(eval VERSION_NAMES += 10-6.0.1)
-$(eval $(call VERSION_template,10-6.1,6.1,7722629,21.1.219))
-$(eval VERSION_NAMES += 10-6.1)
+$(foreach v,$(VERSIONS),$(eval $(call VERSION_template,$(v))))
