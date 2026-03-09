@@ -1,68 +1,140 @@
+# All the Mods 10 — Docker Server
 
-# [All the Mods 10-5.5](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) on Curseforge
-<!-- toc -->
+Docker image set for a headless [All the Mods 10](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) Minecraft server.
+Designed for [Unraid](https://unraid.net) (uid 99 / gid 100), but usable anywhere with a persistent `/data` volume.
 
-- [Description](#description)
-- [Requirements](#requirements)
-- [Options](#options)
-  * [Adding Minecraft Operators](#adding-minecraft-operators)
-- [Troubleshooting](#troubleshooting)
-  * [Accept the EULA](#accept-the-eula)
-  * [Permissions of Files](#permissions-of-files)
-  * [Resetting](#resetting)
-- [Source](#source-original-atm9-repo)
+## How it works
 
-<!-- tocstop -->
+Two images are built per version:
 
-## Description
+| Image                              | Role                                                                         |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `evilegg/all-the-mods-data:10.X.Y` | Init container — seeds a named volume with the pre-installed NeoForge server |
+| `evilegg/all-the-mods:10.X.Y`      | Runtime — lightweight Java + entrypoint script, mounts the seeded volume     |
 
-This container is built to run on an [Unraid](https://unraid.net) server, outside of that your mileage will vary.
+On first start, `docker compose up` runs the init container once to copy the
+pre-built server files into the persistent volume, then starts the server container.
+Subsequent starts skip the copy and go straight to launching the server.
 
+## Quick start
 
-The docker on the first run will download the same version as tagged `All the Mods 10-5.5` and install it.  This can take a while as the Forge installer can take a bit to complete.  You can watch the logs and it will eventually finish.
+```bash
+# 1. Build images for the current default version
+make
 
-After the first run, it will simply start the server.
+# 2. Start the server (seeds the volume on first run)
+EULA=true docker compose up
+```
 
-Note: There are no modded Minecraft files shipped in the container, they are all downloaded at runtime.
+The server will be reachable on port `25565`.
 
-## Requirements
+## Running with Docker Compose
 
-* /data mounted to a persistent disk
-* Port 25565/tcp mapped
-* environment variable EULA set to "true"
+Copy `docker-compose.yml` and set at minimum `EULA: "true"`:
 
-As the end user, you are responsible for accepting the EULA from Mojang to run their server, by default in the container it is set to false.
+```yaml
+services:
+  init:
+    image: evilegg/all-the-mods-data:10.6.1
+    user: "99:100"
+    volumes:
+      - data:/data
+    command:
+      ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
 
-## Options
+  server:
+    image: evilegg/all-the-mods:10.6.1
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    volumes:
+      - data:/data
+    ports:
+      - "25565:25565"
+    environment:
+      EULA: "true"
+    restart: unless-stopped
 
-These environment variables can be set to override their defaults.
+volumes:
+  data:
+```
 
-* JVM_OPTS "-Xms2048m -Xmx4096m"
-* MOTD "All the Mods 10-5.5 Server Powered by Docker"
-* ALLOW_FLIGHT "true" or "false"
-* MAX_PLAYERS "5"
-* ONLINE_MODE "true" or "false"
-* ENABLE_WHITELIST "true" or "false"
-* WHITELIST_USERS "TestUserName1, TestUserName2"
-* OP_USERS "TestUserName1, TestUserName2"
+## Environment variables
 
-## Troubleshooting
+| Variable           | Default               | Description                         |
+| ------------------ | --------------------- | ----------------------------------- |
+| `EULA`             | _(required)_          | Must be `true` to start the server  |
+| `JVM_OPTS`         | `-Xms2048m -Xmx4096m` | Java heap flags                     |
+| `MOTD`             | _(server default)_    | Message of the day                  |
+| `MAX_PLAYERS`      | `5`                   | Maximum concurrent players          |
+| `ONLINE_MODE`      | `true`                | Verify players against Mojang       |
+| `ALLOW_FLIGHT`     | `true`                | Allow flight in survival mode       |
+| `ENABLE_WHITELIST` | `false`               | Restrict logins to the whitelist    |
+| `WHITELIST_USERS`  | _(empty)_             | Comma-separated Minecraft usernames |
+| `OP_USERS`         | _(empty)_             | Comma-separated operator usernames  |
 
-### Accept the EULA
-Did you pass in the environment variable EULA set to `true`?
+## Build targets
 
-### Permissions of Files
-This container is designed for [Unraid](https://unraid.net) so the user in the container runs on uid 99 and gid 100.  This may cause permission errors on the /data mount on other systems.
+```
+make             # build data + runtime images for the default version (local arch)
+make dist        # build + push for linux/amd64 and linux/arm64
+make 10-6.1      # build a specific version for local arch
+make dist-10-6.1 # build + push a specific version for all arches
+make help        # list all available targets
+```
 
-### Resetting
-If the installation is incomplete for some reason.  Deleting the downloaded server file in /data will restart the install/upgrade process.
+## Adding a new modpack version
 
-## Source (Original ATM9 repo)
-Github: https://github.com/Goobaroo/docker-allthemods9
+All version metadata lives in `versions.conf` — the `Makefile` never needs to change.
 
-Docker: https://hub.docker.com/repository/docker/goobaroo/allthemods9
+**1. Find the new release on CurseForge.**
+Go to the [ATM10 files page](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10/files)
+and open the new release.
+Note the file ID from the URL and the direct download link for `Server-Files-X.Y.zip`.
 
-## Source (W3LFARe repo)
-Github: https://github.com/W3LFARe/docker-allthemods10
+**2. Append a line to `versions.conf`.**
 
-Docker: https://registry.hub.docker.com/r/w3lfare/allthemods10 
+```
+# make-target  server-version  curseforge-file-id  neoforge-version  download-url
+10-6.2  6.2  7800000  21.1.219  https://curseforge.com/.../Server-Files-6.2.zip
+```
+
+The last non-comment line is automatically the new default for `make` / `make dist`.
+
+**3. Build and push.**
+
+```bash
+make 10-6.2       # local test build
+make dist-10-6.2  # push to registry for all architectures
+```
+
+That's it — no other files need editing.
+
+## Resetting the server
+
+To wipe world data and re-seed from the image, remove the named volume:
+
+```bash
+docker compose down -v
+docker compose up
+```
+
+To keep world data but force a fresh server install, delete `libraries/` inside
+the volume — the init container will re-copy everything on next start.
+
+## Volumes and ports
+
+| Mount   | Purpose                                                |
+| ------- | ------------------------------------------------------ |
+| `/data` | All persistent state: world saves, configs, mods, logs |
+
+| Port    | Protocol | Purpose                |
+| ------- | -------- | ---------------------- |
+| `25565` | TCP      | Minecraft game traffic |
+
+## Notes
+
+- The server runs as uid 99 / gid 100 (`minecraft` user) inside the container.
+  On non-Unraid systems, ensure the `/data` mount is writable by that uid.
+- `EULA=true` is required.
+  By accepting it you agree to [Mojang's EULA](https://www.minecraft.net/en-us/eula).
