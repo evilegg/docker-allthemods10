@@ -22,7 +22,7 @@ BUILD_ARGS = \
 .PHONY: all dist help
 
 all: ## Build image for local architecture
-	docker build $(BUILD_ARGS) $(ZIP_SOURCE) -t $(IMAGE):$(TAG) .
+	docker buildx build $(BUILD_ARGS) $(ZIP_SOURCE) --load -t $(IMAGE):$(TAG) .
 
 dist: ## Build for linux/amd64 + linux/arm64 and push to registry
 	docker buildx build $(BUILD_ARGS) $(ZIP_SOURCE) \
