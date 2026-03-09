@@ -27,4 +27,5 @@ WORKDIR /data
 
 EXPOSE 25565/tcp
 
-CMD ["/launch.sh"]
+ENTRYPOINT ["/launch.sh"]
+CMD ["./run.sh"]
