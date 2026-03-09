@@ -5,7 +5,7 @@ ARG FILE_ID=7722629
 ARG NEOFORGE_VERSION=21.1.219
 
 # ── installer stage (runs natively on build host; output is pure Java) ────────
-FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS installer
+FROM eclipse-temurin:21-jdk AS installer
 
 ARG SERVER_VERSION
 ARG FILE_ID
