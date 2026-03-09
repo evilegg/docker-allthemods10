@@ -31,24 +31,32 @@ RUN mkdir -p /opt/server \
  && rm -f /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar \
           /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar.log
 
-# ── runtime image ─────────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk
+# ── data image ────────────────────────────────────────────────────────────────
+# Lightweight init container: seeds a named volume with the installed server.
+# Run with user 99:100 so copied files are owned by the minecraft user.
+FROM alpine AS data
 
 ARG SERVER_VERSION
-ARG NEOFORGE_VERSION
-
 LABEL version="${SERVER_VERSION}"
 
-ENV SERVER_VERSION=${SERVER_VERSION}
-ENV NEOFORGE_VERSION=${NEOFORGE_VERSION}
+COPY --from=installer /opt/server /opt/server
+
+# Idempotent seed: only copies if the volume is empty (no libraries/ dir).
+CMD ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
+
+# ── runtime image ─────────────────────────────────────────────────────────────
+# Lightweight server container: just Java + launch.sh.
+# Expects /data to be pre-seeded by the data init container.
+FROM eclipse-temurin:21-jdk AS runtime
+
+ARG SERVER_VERSION
+LABEL version="${SERVER_VERSION}"
 
 RUN apt-get update && apt-get install -y curl jq && \
     adduser --uid 99 --gid 100 --home /data --disabled-password minecraft
 
 COPY launch.sh /launch.sh
 RUN chmod +x /launch.sh
-
-COPY --from=installer --chown=99:100 /opt/server /opt/server
 
 USER minecraft
 

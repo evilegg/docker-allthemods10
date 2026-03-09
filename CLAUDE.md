@@ -2,18 +2,37 @@
 
 ## Project Purpose
 
-Docker image for a headless [All the Mods 10](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) Minecraft server.
+Docker image set for a headless [All the Mods 10](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) Minecraft server.
 Designed for Unraid (uid 99 / gid 100), but usable anywhere with a `/data` volume.
-Current published version: **5.5** (label in Dockerfile).
+
+## Two-Image Architecture
+
+Two images are built per version:
+
+| Image                              | Purpose                                                                      |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `evilegg/all-the-mods-data:10.X.Y` | Init container — seeds a named volume with the pre-installed NeoForge server |
+| `evilegg/all-the-mods:10.X.Y`      | Runtime — lightweight Java + `launch.sh`, mounts the seeded volume           |
+
+Deploy both with `docker-compose.yml`.
+The init container runs once and exits; the server container starts after it completes successfully.
 
 ## Key Files
 
-| File              | Role                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------------------- |
-| `Dockerfile`      | Builds the image: installs Java 21 JDK + curl/unzip/jq, copies `launch.sh`, creates `minecraft` user |
-| `launch.sh`       | Container entrypoint — downloads + installs server on first run, then launches it                    |
-| `curseforge.com/` | **Pre-cached** modpack archives (see below)                                                          |
-| `data/`           | Placeholder for the runtime `/data` volume mount                                                     |
+| File                 | Role                                                                              |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `Dockerfile`         | Multi-stage build: `installer` → `data`, `installer` → `runtime`                  |
+| `launch.sh`          | Runtime entrypoint — applies env overrides, manages whitelist/ops, execs `run.sh` |
+| `Makefile`           | Build automation; `make 10-X.Y` builds both images for local arch                 |
+| `download-urls.mk`   | CDN fallback URLs keyed by FILE_ID (fill in before building without local cache)  |
+| `docker-compose.yml` | Compose file wiring init + server containers                                      |
+| `curseforge.com/`    | **Pre-cached** modpack archives (gitignored; see below)                           |
+
+## Dockerfile Stages
+
+- **`installer`** — runs NeoForge installer inside `eclipse-temurin:21-jdk`; produces `/opt/server/`
+- **`data`** (`--target data`) — Alpine base, ships `/opt/server/`; CMD seeds `/data` if empty
+- **`runtime`** (`--target runtime`) — `eclipse-temurin:21-jdk` + curl/jq + `launch.sh`; no server files
 
 ## Pre-Cached Files
 
@@ -23,65 +42,48 @@ Locally cached server zips live under:
 curseforge.com/minecraft/modpacks/all-the-mods-10/files/<file-id>/
 ```
 
-| Version | File ID | Cached Files                                                                 |
-| ------- | ------- | ---------------------------------------------------------------------------- |
-| 5.5     | 7558573 | `Server-Files-5.5.zip`, `All the Mods 10-5.5.zip`                            |
-| 6.0     | 7676054 | `Server-Files-6.0.1.zip`, `All the Mods 10-6.0.zip`                          |
-| 6.1     | 7722629 | `Server-Files-6.1.zip`, `Server-Files-6.1.tar.gz`, `All the Mods 10-6.1.zip` |
+| Version | File ID | Server Zip               |
+| ------- | ------- | ------------------------ |
+| 5.5     | 7558573 | `Server-Files-5.5.zip`   |
+| 6.0.1   | 7676054 | `Server-Files-6.0.1.zip` |
+| 6.1     | 7722629 | `Server-Files-6.1.zip`   |
 
 ## How launch.sh Works (Runtime)
 
-1. Writes `eula.txt` (requires `EULA=true` env var).
-2. **First run only** — if `Server-Files-$SERVER_VERSION.zip` is absent in `/data`:
-   - Removes old modpack dirs (`config`, `kubejs`, `mods`, etc.)
-   - Downloads `ServerFiles-$SERVER_VERSION.zip` from `mediafilez.forgecdn.net`
-   - Unzips to `/data`, flattening any subdirectory
-   - Downloads the NeoForge installer jar from `maven.neoforged.net`
-   - Runs `java -jar neoforge-...-installer.jar --installServer`
-3. Applies env-var overrides to `user_jvm_args.txt` / `server.properties`.
+1. Writes `eula.txt` (requires `EULA=true` env var; exits with code 99 otherwise).
+2. Exits with an error if `/data/libraries` is absent (init container must run first).
+3. Applies env-var overrides to `user_jvm_args.txt` and `server.properties`.
 4. Populates `whitelist.json` and `ops.json` via `playerdb.co` UUID lookups.
-5. Runs `./run.sh` (the NeoForge server launcher).
-
-## Refactoring Goal
-
-**Avoid re-downloading files at build time / first container start.**
-The pre-cached zips in `curseforge.com/` should be `COPY`-ed into the image so
-`launch.sh` can use them directly instead of fetching from the internet.
-
-Key changes needed:
-
-- `Dockerfile`: `COPY` the relevant `Server-Files-$VERSION.zip` into the image
-  (e.g. to `/opt/server-cache/`) and also pre-stage the NeoForge installer jar.
-- `launch.sh`: Before curling, check if the file already exists at the cache path
-  and copy/link it instead of downloading.
+5. `chmod 755 run.sh` then `exec "$@"` (default CMD is `./run.sh`, making it PID 1).
 
 ## Environment Variables
 
-| Variable           | Default / Example                              |
-| ------------------ | ---------------------------------------------- |
-| `EULA`             | must be `true`                                 |
-| `JVM_OPTS`         | `-Xms2048m -Xmx4096m`                          |
-| `MOTD`             | `All the Mods 10-5.5 Server Powered by Docker` |
-| `ALLOW_FLIGHT`     | `true`/`false`                                 |
-| `MAX_PLAYERS`      | `5`                                            |
-| `ONLINE_MODE`      | `true`/`false`                                 |
-| `ENABLE_WHITELIST` | `true`/`false`                                 |
-| `WHITELIST_USERS`  | `User1, User2`                                 |
-| `OP_USERS`         | `User1, User2`                                 |
+| Variable           | Default / Example         |
+| ------------------ | ------------------------- |
+| `EULA`             | must be `true`            |
+| `JVM_OPTS`         | `-Xms2048m -Xmx4096m`     |
+| `MOTD`             | server description string |
+| `ALLOW_FLIGHT`     | `true`/`false`            |
+| `MAX_PLAYERS`      | `5`                       |
+| `ONLINE_MODE`      | `true`/`false`            |
+| `ENABLE_WHITELIST` | `true`/`false`            |
+| `WHITELIST_USERS`  | `User1, User2`            |
+| `OP_USERS`         | `User1, User2`            |
 
-## Version Variables (in launch.sh)
+## Makefile Targets
 
-```bash
-NEOFORGE_VERSION=21.1.219
-SERVER_VERSION=5.5
 ```
-
-Both must be bumped together when upgrading the modpack.
+make 10-6.1       # build data + runtime images for version 6.1, local arch
+make dist-10-6.1  # build + push data + runtime for all arches (requires buildx)
+make all          # build default version (currently 6.1) for local arch
+make dist         # build + push default version for all arches
+make help         # list all targets
+```
 
 ## Notes
 
-- Port `25565/tcp` exposed.
-- `/data` must be a persistent volume — all world data, configs, and mods live there.
-- The install guard is `[[ -f "Server-Files-$SERVER_VERSION.zip" ]]` in `/data`.
-  Deleting that file triggers a full reinstall on next start.
+- Port `25565/tcp` exposed by the runtime image.
+- `/data` must be a persistent volume — world data, configs, and mods live there.
+- The init container is idempotent: it checks for `libraries/` before copying.
+  Re-running it on an already-seeded volume is a no-op.
 - `.tmp_msg` is in `.gitignore` (global convention).

@@ -1,10 +1,6 @@
 #!/bin/bash
 set -x
 
-
-SERVER_VERSION=${SERVER_VERSION:-5.5}
-NEOFORGE_VERSION=${NEOFORGE_VERSION:-21.1.219}
-
 cd /data
 
 if ! [[ "$EULA" = "false" ]]; then
@@ -15,8 +11,9 @@ else
 fi
 
 if [[ ! -d "libraries" ]]; then
-    echo "First run: copying provisioned server files into /data..."
-    cp -r /opt/server/. /data/
+    echo "ERROR: /data/libraries not found." >&2
+    echo "Run the data init container first to seed the volume." >&2
+    exit 1
 fi
 
 if [[ -n "$JVM_OPTS" ]]; then

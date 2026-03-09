@@ -1,4 +1,5 @@
 IMAGE            ?= evilegg/all-the-mods
+IMAGE_DATA       ?= evilegg/all-the-mods-data
 SERVER_VERSION   ?= 6.1
 FILE_ID          ?= 7722629
 NEOFORGE_VERSION ?= 21.1.219
@@ -30,11 +31,16 @@ _stage-zip:
 		touch .build/server.zip; \
 	fi
 
-all: _stage-zip ## Build image for local architecture
-	docker build $(BUILD_ARGS) -t $(IMAGE):$(TAG) .
+all: _stage-zip ## Build data + runtime images for local architecture
+	docker build --target data    $(BUILD_ARGS) -t $(IMAGE_DATA):$(TAG) .
+	docker build --target runtime $(BUILD_ARGS) -t $(IMAGE):$(TAG) .
 
-dist: _stage-zip ## Build for linux/amd64 + linux/arm64 and push to registry
-	docker buildx build $(BUILD_ARGS) \
+dist: _stage-zip ## Build data + runtime images for all arches and push
+	docker buildx build --target data    $(BUILD_ARGS) \
+		--platform linux/amd64,linux/arm64 \
+		-t $(IMAGE_DATA):$(TAG) \
+		--push .
+	docker buildx build --target runtime $(BUILD_ARGS) \
 		--platform linux/amd64,linux/arm64 \
 		-t $(IMAGE):$(TAG) \
 		--push .
@@ -45,8 +51,8 @@ help: ## Show this help
 	@awk 'BEGIN {FS=":.*##"}; /^[a-zA-Z][a-zA-Z0-9_-]*:.*##/ {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf "\nVersion targets:\n"
 	@$(foreach n,$(VERSION_NAMES),\
-		printf "  %-22s Build ATM10 %s for local arch\n" "$(n)" "$(subst 10-,,$(n))"; \
-		printf "  %-22s Build ATM10 %s for all arches and push\n" "dist-$(n)" "$(subst 10-,,$(n))";)
+		printf "  %-22s Build ATM10 %s data+runtime for local arch\n" "$(n)" "$(subst 10-,,$(n))"; \
+		printf "  %-22s Build ATM10 %s data+runtime for all arches and push\n" "dist-$(n)" "$(subst 10-,,$(n))";)
 
 # ── named version targets ─────────────────────────────────────────────────────
 
