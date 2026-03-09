@@ -34,12 +34,10 @@ if ! [[ -f "Server-Files-$SERVER_VERSION.zip" ]]; then
         rm -fr "$DIR_TEST"
     fi
 
-    # startserver.sh handles its own NeoForge install; only run the installer manually
-    # when using the older run.sh-based launcher (e.g. ATM10 5.5)
-    if [[ ! -f "startserver.sh" ]]; then
+    if [[ ! -f "neoforge-${NEOFORGE_VERSION}-installer.jar" ]]; then
         curl -Lo neoforge-${NEOFORGE_VERSION}-installer.jar https://maven.neoforged.net/releases/net/neoforged/neoforge/$NEOFORGE_VERSION/neoforge-$NEOFORGE_VERSION-installer.jar
-        java -jar neoforge-${NEOFORGE_VERSION}-installer.jar --installServer
     fi
+    java -jar neoforge-${NEOFORGE_VERSION}-installer.jar --installServer
 fi
 
 if [[ -n "$JVM_OPTS" ]]; then
@@ -118,10 +116,5 @@ done
 
 sed -i 's/server-port.*/server-port=25565/g' server.properties
 
-if [[ -f "startserver.sh" ]]; then
-    chmod 755 startserver.sh
-    ATM10_RESTART=false ./startserver.sh
-else
-    chmod 755 run.sh
-    ./run.sh
-fi
+chmod 755 run.sh
+./run.sh
