@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
+ARG JAVA_VERSION=21
 ARG SERVER_VERSION=6.1
-ARG FILE_ID=7722629
 ARG NEOFORGE_VERSION=21.1.219
 
 # ── installer stage ───────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk AS installer
+FROM eclipse-temurin:${JAVA_VERSION}-jdk AS installer
 
 ARG SERVER_VERSION
 ARG NEOFORGE_VERSION
@@ -24,12 +24,21 @@ RUN if [ -s /tmp/server.zip ]; then \
         echo "ERROR: .build/server.zip is empty and no DOWNLOAD_URL provided." >&2 && exit 1; \
     fi
 
-RUN mkdir -p /opt/server \
- && unzip /tmp/server.zip -d /opt/server \
+# Unzip and normalize: some CurseForge server zips land files at the archive
+# root, others nest them inside a single subdirectory.  Flatten the latter.
+RUN mkdir -p /opt/server /tmp/unpack \
+ && unzip /tmp/server.zip -d /tmp/unpack \
+ && files=$(find /tmp/unpack -maxdepth 1 -mindepth 1 -type f | wc -l) \
+ && dirs=$(find /tmp/unpack -maxdepth 1 -mindepth 1 -type d | wc -l) \
+ && if [ "$files" -eq 0 ] && [ "$dirs" -eq 1 ]; then \
+        cp -r /tmp/unpack/*/. /opt/server/; \
+    else \
+        cp -r /tmp/unpack/. /opt/server/; \
+    fi \
  && cd /opt/server \
  && java -jar neoforge-${NEOFORGE_VERSION}-installer.jar --installServer \
- && rm -f /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar \
-          /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar.log
+ && rm -f neoforge-${NEOFORGE_VERSION}-installer.jar \
+          neoforge-${NEOFORGE_VERSION}-installer.jar.log
 
 # ── data image ────────────────────────────────────────────────────────────────
 # Lightweight init container: seeds a named volume with the installed server.
@@ -47,7 +56,7 @@ CMD ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
 # ── runtime image ─────────────────────────────────────────────────────────────
 # Lightweight server container: just Java + launch.sh.
 # Expects /data to be pre-seeded by the data init container.
-FROM eclipse-temurin:21-jdk AS runtime
+FROM eclipse-temurin:${JAVA_VERSION}-jdk AS runtime
 
 ARG SERVER_VERSION
 LABEL version="${SERVER_VERSION}"
