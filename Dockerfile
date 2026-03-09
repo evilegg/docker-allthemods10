@@ -4,20 +4,34 @@ ARG SERVER_VERSION=6.1
 ARG FILE_ID=7722629
 ARG NEOFORGE_VERSION=21.1.219
 
-# ── installer stage (runs natively on build host; output is pure Java) ────────
+# ── optional local zip cache ──────────────────────────────────────────────────
+# Empty by default. Override at build time with:
+#   --build-context staged-zip=curseforge.com/.../files/<FILE_ID>/
+# The installer stage will use the local file instead of downloading.
+FROM scratch AS staged-zip
+
+# ── installer stage ───────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jdk AS installer
 
 ARG SERVER_VERSION
-ARG FILE_ID
 ARG NEOFORGE_VERSION
+ARG DOWNLOAD_URL=
 
-RUN apt-get update && apt-get install -y unzip
+RUN apt-get update && apt-get install -y curl unzip
 
-COPY "curseforge.com/minecraft/modpacks/all-the-mods-10/files/${FILE_ID}/Server-Files-${SERVER_VERSION}.zip" \
-     /tmp/Server-Files-${SERVER_VERSION}.zip
+# Use local zip if present in staged-zip context; otherwise download from CDN.
+RUN --mount=type=bind,from=staged-zip,target=/staged \
+    ZIP="/staged/Server-Files-${SERVER_VERSION}.zip"; \
+    if [ -f "$ZIP" ]; then \
+        cp "$ZIP" /tmp/server.zip; \
+    elif [ -n "$DOWNLOAD_URL" ]; then \
+        curl -fLo /tmp/server.zip "$DOWNLOAD_URL"; \
+    else \
+        echo "ERROR: no local zip and no DOWNLOAD_URL provided." >&2 && exit 1; \
+    fi
 
 RUN mkdir -p /opt/server \
- && unzip /tmp/Server-Files-${SERVER_VERSION}.zip -d /opt/server \
+ && unzip /tmp/server.zip -d /opt/server \
  && cd /opt/server \
  && java -jar neoforge-${NEOFORGE_VERSION}-installer.jar --installServer \
  && rm -f /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar \
