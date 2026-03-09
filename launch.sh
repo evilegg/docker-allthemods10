@@ -1,10 +1,6 @@
 #!/bin/bash
 set -x
 
-
-NEOFORGE_VERSION=21.1.219
-SERVER_VERSION=5.5
-
 cd /data
 
 if ! [[ "$EULA" = "false" ]]; then
@@ -14,43 +10,24 @@ else
     exit 99
 fi
 
-if ! [[ -f "Server-Files-$SERVER_VERSION.zip" ]]; then
-    rm -fr config defaultconfigs kubejs mods packmenu Server-Files-* neoforge*
-
-    curl -Lo "Server-Files-$SERVER_VERSION.zip" "https://mediafilez.forgecdn.net/files/7558/5734/ServerFiles-$SERVER_VERSION.zip" || exit 9
-  
-    unzip -u -o "Server-Files-$SERVER_VERSION.zip" -d /data
-    DIR_TEST="ServerFiles-$SERVER_VERSION"
-    if [[ $(find . -type d -maxdepth 1 | wc -l) -gt 1 ]]; then
-        cd "${DIR_TEST}"
-        find . -type d -exec chmod 777 {} +
-        mv -f * /data
-        cd /data
-        rm -fr "$DIR_TEST"
-    fi
-    
-    curl -Lo neoforge-${NEOFORGE_VERSION}-installer.jar https://maven.neoforged.net/releases/net/neoforged/neoforge/$NEOFORGE_VERSION/neoforge-$NEOFORGE_VERSION-installer.jar
-    java -jar neoforge-${NEOFORGE_VERSION}-installer.jar --installServer
+if [[ ! -d "libraries" ]]; then
+    echo "ERROR: /data/libraries not found." >&2
+    echo "Run the data init container first to seed the volume." >&2
+    exit 1
 fi
 
 if [[ -n "$JVM_OPTS" ]]; then
     sed -i '/-Xm[s,x]/d' user_jvm_args.txt
     for j in ${JVM_OPTS}; do sed -i '$a\'$j'' user_jvm_args.txt; done
 fi
-if [[ -n "$MOTD" ]]; then
-    sed -i "s/^motd=.*/motd=$MOTD/" /data/server.properties
-fi
-if [[ -n "$ENABLE_WHITELIST" ]]; then
-    sed -i "s/white-list=.*/white-list=$ENABLE_WHITELIST/" /data/server.properties
-fi
-if [[ -n "$ALLOW_FLIGHT" ]]; then
-    sed -i "s/allow-flight=.*/allow-flight=$ALLOW_FLIGHT/" /data/server.properties
-fi
-if [[ -n "$MAX_PLAYERS" ]]; then
-    sed -i "s/max-players=.*/max-players=$MAX_PLAYERS/" /data/server.properties
-fi
-if [[ -n "$ONLINE_MODE" ]]; then
-    sed -i "s/online-mode=.*/online-mode=$ONLINE_MODE/" /data/server.properties
+
+if [[ -f server.properties ]]; then
+    [[ -n "$MOTD" ]]             && sed -i "s/^motd=.*/motd=$MOTD/" server.properties
+    [[ -n "$ENABLE_WHITELIST" ]] && sed -i "s/white-list=.*/white-list=$ENABLE_WHITELIST/" server.properties
+    [[ -n "$ALLOW_FLIGHT" ]]     && sed -i "s/allow-flight=.*/allow-flight=$ALLOW_FLIGHT/" server.properties
+    [[ -n "$MAX_PLAYERS" ]]      && sed -i "s/max-players=.*/max-players=$MAX_PLAYERS/" server.properties
+    [[ -n "$ONLINE_MODE" ]]      && sed -i "s/online-mode=.*/online-mode=$ONLINE_MODE/" server.properties
+    sed -i 's/server-port.*/server-port=25565/g' server.properties
 fi
 
 # Initialize whitelist.json if not present
@@ -107,7 +84,5 @@ for raw_username in "${OPS[@]}"; do
     fi
 done
 
-sed -i 's/server-port.*/server-port=25565/g' server.properties
 chmod 755 run.sh
-
-./run.sh
+exec "$@"

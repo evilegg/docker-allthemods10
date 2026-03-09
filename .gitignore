@@ -1,0 +1,4 @@
+.build/
+.tmp_msg
+curseforge.com/
+versions.mk
