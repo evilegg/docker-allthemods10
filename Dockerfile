@@ -20,6 +20,14 @@ RUN chmod +x /launch.sh
 COPY "curseforge.com/minecraft/modpacks/all-the-mods-10/files/${FILE_ID}/Server-Files-${SERVER_VERSION}.zip" \
      /opt/server-cache/Server-Files-${SERVER_VERSION}.zip
 
+RUN mkdir -p /opt/server \
+ && unzip /opt/server-cache/Server-Files-${SERVER_VERSION}.zip -d /opt/server \
+ && cd /opt/server \
+ && java -jar neoforge-${NEOFORGE_VERSION}-installer.jar --installServer \
+ && rm -f /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar \
+          /opt/server/neoforge-${NEOFORGE_VERSION}-installer.jar.log \
+ && chown -R 99:100 /opt/server
+
 USER minecraft
 
 VOLUME /data
