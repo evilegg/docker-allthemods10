@@ -1,7 +1,9 @@
 IMAGE      ?= evilegg/all-the-mods
 IMAGE_DATA ?= evilegg/all-the-mods-data
 
--include download-urls.mk
+# versions.mk is auto-generated from versions.conf — edit that file, not this one.
+# GNU Make will build versions.mk on demand then re-exec if it is missing.
+include versions.mk
 
 # Build parameters — derived from DEFAULT_VERSION when not overridden on CLI.
 SERVER_VERSION   ?= $(VERSION_SRV_$(DEFAULT_VERSION))
@@ -52,12 +54,12 @@ help: ## Show this help
 	@printf "Usage:\n  make <target>\n"
 	@printf "\nGeneral targets:\n"
 	@awk 'BEGIN {FS=":.*##"}; /^[a-zA-Z][a-zA-Z0-9_-]*:.*##/ {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf "\nVersion targets (defined in download-urls.mk):\n"
+	@printf "\nVersion targets (defined in versions.conf):\n"
 	@$(foreach v,$(VERSIONS),\
 		printf "  %-22s Build ATM10 %s data+runtime for local arch\n" "$(v)" "$(VERSION_SRV_$(v))"; \
 		printf "  %-22s Build ATM10 %s data+runtime for all arches and push\n" "dist-$(v)" "$(VERSION_SRV_$(v))";)
 
-# ── per-version targets (auto-generated from VERSIONS in download-urls.mk) ────
+# ── per-version targets (auto-generated from VERSIONS in versions.conf) ────────
 
 define VERSION_template
 .PHONY: $(1) dist-$(1)
@@ -68,3 +70,15 @@ dist-$(1):
 endef
 
 $(foreach v,$(VERSIONS),$(eval $(call VERSION_template,$(v))))
+
+# ── generate versions.mk from versions.conf ────────────────────────────────────
+
+versions.mk: versions.conf
+	awk '!/^[[:space:]]*#/ && NF==5 { \
+	  printf "VERSIONS += %s\n",           $$1; \
+	  printf "VERSION_SRV_%s  := %s\n",   $$1, $$2; \
+	  printf "VERSION_FILE_%s := %s\n",   $$1, $$3; \
+	  printf "VERSION_NF_%s   := %s\n",   $$1, $$4; \
+	  printf "DOWNLOAD_URL_%s := %s\n\n", $$3, $$5; \
+	  last=$$1 \
+	} END { printf "DEFAULT_VERSION := %s\n", last }' $< > $@
