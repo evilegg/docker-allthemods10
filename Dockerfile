@@ -4,12 +4,6 @@ ARG SERVER_VERSION=6.1
 ARG FILE_ID=7722629
 ARG NEOFORGE_VERSION=21.1.219
 
-# ── optional local zip cache ──────────────────────────────────────────────────
-# Empty by default. Override at build time with:
-#   --build-context staged-zip=curseforge.com/.../files/<FILE_ID>/
-# The installer stage will use the local file instead of downloading.
-FROM scratch AS staged-zip
-
 # ── installer stage ───────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jdk AS installer
 
@@ -19,15 +13,15 @@ ARG DOWNLOAD_URL=
 
 RUN apt-get update && apt-get install -y curl unzip
 
-# Use local zip if present in staged-zip context; otherwise download from CDN.
-RUN --mount=type=bind,from=staged-zip,target=/staged \
-    ZIP="/staged/Server-Files-${SERVER_VERSION}.zip"; \
-    if [ -f "$ZIP" ]; then \
-        cp "$ZIP" /tmp/server.zip; \
+# .build/server.zip is pre-staged by the Makefile.
+# If it is non-empty the local file is used; otherwise download from CDN.
+COPY .build/server.zip /tmp/server.zip
+RUN if [ -s /tmp/server.zip ]; then \
+        echo "Using pre-staged server zip"; \
     elif [ -n "$DOWNLOAD_URL" ]; then \
         curl -fLo /tmp/server.zip "$DOWNLOAD_URL"; \
     else \
-        echo "ERROR: no local zip and no DOWNLOAD_URL provided." >&2 && exit 1; \
+        echo "ERROR: .build/server.zip is empty and no DOWNLOAD_URL provided." >&2 && exit 1; \
     fi
 
 RUN mkdir -p /opt/server \

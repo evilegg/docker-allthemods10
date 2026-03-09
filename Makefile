@@ -10,22 +10,31 @@ CDN_URL := $(DOWNLOAD_URL_$(FILE_ID))
 # Local pre-cached zip (not required; skipped in CI)
 LOCAL_ZIP := curseforge.com/minecraft/modpacks/all-the-mods-10/files/$(FILE_ID)/Server-Files-$(SERVER_VERSION).zip
 
-# Pass local zip via build context if present, otherwise pass CDN URL
-ZIP_SOURCE := $(if $(wildcard $(LOCAL_ZIP)),\
-	--build-context staged-zip=$(dir $(LOCAL_ZIP)),\
-	--build-arg DOWNLOAD_URL=$(CDN_URL))
-
 BUILD_ARGS = \
 	--build-arg SERVER_VERSION=$(SERVER_VERSION) \
-	--build-arg NEOFORGE_VERSION=$(NEOFORGE_VERSION)
+	--build-arg NEOFORGE_VERSION=$(NEOFORGE_VERSION) \
+	--build-arg DOWNLOAD_URL=$(CDN_URL)
 
-.PHONY: all dist help
+.PHONY: all dist help _stage-zip
 
-all: ## Build image for local architecture
-	docker buildx build $(BUILD_ARGS) $(ZIP_SOURCE) --load -t $(IMAGE):$(TAG) .
+# Stage the server zip into .build/ before every build.
+# Copies from local cache if present; otherwise creates an empty placeholder
+# so the Dockerfile falls through to the CDN download at build time.
+_stage-zip:
+	@mkdir -p .build
+	@if [ -f "$(LOCAL_ZIP)" ]; then \
+		echo "Staging $(LOCAL_ZIP)"; \
+		cp "$(LOCAL_ZIP)" .build/server.zip; \
+	else \
+		echo "No local zip found; will download from CDN during build"; \
+		touch .build/server.zip; \
+	fi
 
-dist: ## Build for linux/amd64 + linux/arm64 and push to registry
-	docker buildx build $(BUILD_ARGS) $(ZIP_SOURCE) \
+all: _stage-zip ## Build image for local architecture
+	DOCKER_BUILDKIT=1 docker build $(BUILD_ARGS) -t $(IMAGE):$(TAG) .
+
+dist: _stage-zip ## Build for linux/amd64 + linux/arm64 and push to registry
+	docker buildx build $(BUILD_ARGS) \
 		--platform linux/amd64,linux/arm64 \
 		-t $(IMAGE):$(TAG) \
 		--push .
