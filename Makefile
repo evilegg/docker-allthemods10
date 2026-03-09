@@ -31,7 +31,7 @@ _stage-zip:
 	fi
 
 all: _stage-zip ## Build image for local architecture
-	DOCKER_BUILDKIT=1 docker build $(BUILD_ARGS) -t $(IMAGE):$(TAG) .
+	docker build $(BUILD_ARGS) -t $(IMAGE):$(TAG) .
 
 dist: _stage-zip ## Build for linux/amd64 + linux/arm64 and push to registry
 	docker buildx build $(BUILD_ARGS) \
