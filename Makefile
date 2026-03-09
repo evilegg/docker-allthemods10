@@ -44,5 +44,5 @@ endef
 
 # name        server_version  file_id   neoforge_version
 $(eval $(call VERSION_template,10-5.5,5.5,7558573,21.1.219))
-$(eval $(call VERSION_template,10-6.0.1,6.0.1,7676054,21.1.219))  # verify NeoForge version
+$(eval $(call VERSION_template,10-6.0.1,6.0.1,7676054,21.1.219))
 $(eval $(call VERSION_template,10-6.1,6.1,7722629,21.1.219))
