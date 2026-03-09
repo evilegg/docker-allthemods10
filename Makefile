@@ -1,5 +1,6 @@
-IMAGE      ?= evilegg/all-the-mods
-IMAGE_DATA ?= evilegg/all-the-mods-data
+# pack.conf defines PACK_SLUG, IMAGE, IMAGE_DATA, JAVA_VERSION.
+# Edit that file when forking this template for a new modpack.
+include pack.conf
 
 # versions.mk is auto-generated from versions.conf — edit that file, not this one.
 # GNU Make will build versions.mk on demand then re-exec if it is missing.
@@ -9,19 +10,20 @@ include versions.mk
 SERVER_VERSION   ?= $(VERSION_SRV_$(DEFAULT_VERSION))
 FILE_ID          ?= $(VERSION_FILE_$(DEFAULT_VERSION))
 NEOFORGE_VERSION ?= $(VERSION_NF_$(DEFAULT_VERSION))
-TAG              ?= 10.$(SERVER_VERSION)
+TAG              ?= $(SERVER_VERSION)
 
 CDN_URL := $(DOWNLOAD_URL_$(FILE_ID))
 
 # Local pre-cached zip (not required; skipped in CI)
-LOCAL_ZIP := curseforge.com/minecraft/modpacks/all-the-mods-10/files/$(FILE_ID)/Server-Files-$(SERVER_VERSION).zip
+LOCAL_ZIP := curseforge.com/minecraft/modpacks/$(PACK_SLUG)/files/$(FILE_ID)/Server-Files-$(SERVER_VERSION).zip
 
 BUILD_ARGS = \
 	--build-arg SERVER_VERSION=$(SERVER_VERSION) \
 	--build-arg NEOFORGE_VERSION=$(NEOFORGE_VERSION) \
+	--build-arg JAVA_VERSION=$(JAVA_VERSION) \
 	--build-arg DOWNLOAD_URL=$(CDN_URL)
 
-.PHONY: all dist help _stage-zip
+.PHONY: all dist help compose-env _stage-zip
 
 # Stage the server zip into .build/ before every build.
 # Copies from local cache if present; otherwise creates an empty placeholder
@@ -50,14 +52,19 @@ dist: _stage-zip ## Build data + runtime images for all arches and push
 		-t $(IMAGE):$(TAG) \
 		--push .
 
+compose-env: ## Write .env for docker-compose.yml from current pack + default version
+	@printf 'IMAGE=%s\nIMAGE_DATA=%s\nTAG=%s\n' \
+		'$(IMAGE)' '$(IMAGE_DATA)' '$(TAG)' > .env
+	@echo "Wrote .env (IMAGE=$(IMAGE), IMAGE_DATA=$(IMAGE_DATA), TAG=$(TAG))"
+
 help: ## Show this help
 	@printf "Usage:\n  make <target>\n"
 	@printf "\nGeneral targets:\n"
 	@awk 'BEGIN {FS=":.*##"}; /^[a-zA-Z][a-zA-Z0-9_-]*:.*##/ {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf "\nVersion targets (defined in versions.conf):\n"
 	@$(foreach v,$(VERSIONS),\
-		printf "  %-22s Build ATM10 %s data+runtime for local arch\n" "$(v)" "$(VERSION_SRV_$(v))"; \
-		printf "  %-22s Build ATM10 %s data+runtime for all arches and push\n" "dist-$(v)" "$(VERSION_SRV_$(v))";)
+		printf "  %-22s Build %s data+runtime for local arch\n" "$(v)" "$(VERSION_SRV_$(v))"; \
+		printf "  %-22s Build %s data+runtime for all arches and push\n" "dist-$(v)" "$(VERSION_SRV_$(v))";)
 
 # ── per-version targets (auto-generated from VERSIONS in versions.conf) ────────
 
