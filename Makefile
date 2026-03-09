@@ -4,10 +4,8 @@ FILE_ID          ?= 7722629
 NEOFORGE_VERSION ?= 21.1.219
 TAG              ?= 10.$(SERVER_VERSION)
 
-# CDN URL derived from FILE_ID (CurseForge split: NNNN/NNN/filename)
-FILE_ID_HIGH := $(shell expr $(FILE_ID) / 1000)
-FILE_ID_LOW  := $(shell expr $(FILE_ID) % 1000)
-CDN_URL      := https://mediafilez.forgecdn.net/files/$(FILE_ID_HIGH)/$(FILE_ID_LOW)/Server-Files-$(SERVER_VERSION).zip
+-include download-urls.mk
+CDN_URL := $(DOWNLOAD_URL_$(FILE_ID))
 
 # Local pre-cached zip (not required; skipped in CI)
 LOCAL_ZIP := curseforge.com/minecraft/modpacks/all-the-mods-10/files/$(FILE_ID)/Server-Files-$(SERVER_VERSION).zip
