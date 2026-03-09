@@ -1,0 +1,44 @@
+# docker-compose.yml
+#
+# Two-container pattern:
+#   init   — seeds the named volume with the pre-built server files (runs once)
+#   server — lightweight runtime that mounts the seeded volume
+#
+# Usage:
+#   docker compose up          # start (seeds on first run, skips on subsequent)
+#   docker compose down        # stop (volume persists)
+#   docker compose down -v     # stop and wipe world data
+
+services:
+  init:
+    image: evilegg/all-the-mods-data:10.6.1
+    # Run as minecraft user (uid 99 / gid 100) so copied files are writable
+    # by the server container running under the same user.
+    user: "99:100"
+    volumes:
+      - data:/data
+    # Idempotent: only copies server files if libraries/ is absent.
+    command: ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
+
+  server:
+    image: evilegg/all-the-mods:10.6.1
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    volumes:
+      - data:/data
+    ports:
+      - "25565:25565"
+    environment:
+      EULA: "true"
+      # JVM_OPTS: "-Xms4096m -Xmx8192m"
+      # MOTD: "My ATM10 Server"
+      # MAX_PLAYERS: "10"
+      # ONLINE_MODE: "true"
+      # ENABLE_WHITELIST: "true"
+      # WHITELIST_USERS: "Player1, Player2"
+      # OP_USERS: "Player1"
+    restart: unless-stopped
+
+volumes:
+  data:
