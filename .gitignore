@@ -1,4 +1,5 @@
 .build/
+world-*.tar.gz
 .tmp_msg
 .env
 curseforge.com/

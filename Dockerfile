@@ -50,8 +50,15 @@ LABEL version="${SERVER_VERSION}"
 
 COPY --from=installer /opt/server /opt/server
 
-# Idempotent seed: only copies if the volume is empty (no libraries/ dir).
-CMD ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
+# Optional world seed: .build/world/ is staged by the Makefile.
+# If it is non-empty the world is bundled into the image and seeded on first run.
+COPY .build/world /opt/world
+
+# Idempotent seed: only copies server files if the volume is empty (no libraries/ dir).
+# If a bundled world exists and no world dir is present, seeds it too.
+CMD ["sh", "-c", \
+  "[ -d /data/libraries ] || cp -r /opt/server/. /data/; \
+   [ \"$(ls -A /opt/world 2>/dev/null)\" ] && [ ! -d /data/world ] && cp -r /opt/world /data/world || true"]
 
 # ── runtime image ─────────────────────────────────────────────────────────────
 # Lightweight server container: just Java + launch.sh.
