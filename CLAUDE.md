@@ -22,17 +22,19 @@ The init container runs once and exits; the server container starts after it com
 | File                 | Role                                                                              |
 | -------------------- | --------------------------------------------------------------------------------- |
 | `Dockerfile`         | Multi-stage build: `installer` → `data`, `installer` → `runtime`                  |
+| `seed.sh`            | Data image entrypoint — seeds `/data`, then overlays `overrides/`                 |
 | `launch.sh`          | Runtime entrypoint — applies env overrides, manages whitelist/ops, execs `run.sh` |
 | `world.sh`           | Host-side CLI for world management (push / reset / pull)                          |
 | `Makefile`           | Build automation; `make 10-X.Y` builds both images for local arch                 |
 | `download-urls.mk`   | CDN fallback URLs keyed by FILE_ID (fill in before building without local cache)  |
 | `docker-compose.yml` | Compose file wiring init + server containers                                      |
 | `curseforge.com/`    | **Pre-cached** modpack archives (gitignored; see below)                           |
+| `overrides/`         | **Build-time file injection** (gitignored; see below)                             |
 
 ## Dockerfile Stages
 
 - **`installer`** — runs NeoForge installer inside `eclipse-temurin:21-jdk`; produces `/opt/server/`
-- **`data`** (`--target data`) — Alpine base, ships `/opt/server/`; CMD seeds `/data` if empty
+- **`data`** (`--target data`) — Alpine base, ships `/opt/server/` and `/opt/overrides/`; `seed.sh` seeds `/data` then overlays overrides
 - **`runtime`** (`--target runtime`) — `eclipse-temurin:21-jdk` + curl/jq + `launch.sh`; no server files
 
 ## Pre-Cached Files
@@ -98,16 +100,24 @@ The volume name is auto-detected from `docker compose config`.
 `pull` will prefer the latest `.zip` from `/data/backups/` if a backup mod is present
 (see: TODO evaluate FTB Backups 2 for ATM10).
 
-### Build-time world bundling
+### Build-time file injection (overrides/)
 
-Pass `WORLD_DIR` to include a world in the data image:
+Place files under `overrides/` to inject them into `/data` at seed time.
+The directory structure is preserved:
 
 ```
-make WORLD_DIR=./saves/my-world all
+overrides/world/           → /data/world/
+overrides/mods/extra.jar   → /data/mods/extra.jar
+overrides/server.properties → /data/server.properties
 ```
 
-The Makefile stages it into `.build/world/` (gitignored).
-The data image CMD seeds `/data/world` from it on first run if no world is present.
+The Makefile stages `overrides/` into `.build/overrides/` before every build.
+`seed.sh` overlays `/opt/overrides/` onto `/data/` after seeding the server files.
+
+By default, existing files in `/data/` are overwritten and a warning is logged.
+Set `OVERRIDES_NOCLOBBER=true` on the init container to skip existing files instead.
+
+`overrides/` is gitignored — it may contain large world saves or binary mods.
 
 ## Notes
 
