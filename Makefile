@@ -23,7 +23,7 @@ BUILD_ARGS = \
 	--build-arg JAVA_VERSION=$(JAVA_VERSION) \
 	--build-arg DOWNLOAD_URL=$(CDN_URL)
 
-.PHONY: all dist help compose-env _stage-zip _stage-world
+.PHONY: all dist help compose-env _stage-zip _stage-overrides
 
 # Stage the server zip into .build/ before every build.
 # Copies from local cache if present; otherwise creates an empty placeholder
@@ -38,23 +38,23 @@ _stage-zip:
 		touch .build/server.zip; \
 	fi
 
-# Stage world directory into .build/world/ before every build.
-# Set WORLD_DIR=./path/to/world on the CLI to bundle a world into the data image.
-# If unset, .build/world/ is left empty and no world is bundled.
-_stage-world:
-	@mkdir -p .build/world
-	@if [ -n "$(WORLD_DIR)" ]; then \
-		echo "Staging world from $(WORLD_DIR)"; \
-		cp -r "$(WORLD_DIR)/." .build/world/; \
+# Stage overrides/ into .build/overrides/ before every build.
+# Place files under overrides/ to inject them into /data at seed time.
+# The directory is gitignored; see CLAUDE.md for usage.
+_stage-overrides:
+	@mkdir -p .build/overrides
+	@if [ -d overrides ]; then \
+		echo "Staging overrides/"; \
+		cp -r overrides/. .build/overrides/; \
 	else \
-		echo "No WORLD_DIR set; data image will not bundle a world"; \
+		echo "No overrides/ directory; data image will include no overrides"; \
 	fi
 
-all: _stage-zip _stage-world ## Build data + runtime images for local architecture
+all: _stage-zip _stage-overrides ## Build data + runtime images for local architecture
 	docker build --target data    $(BUILD_ARGS) -t $(IMAGE_DATA):$(TAG) .
 	docker build --target runtime $(BUILD_ARGS) -t $(IMAGE):$(TAG) .
 
-dist: _stage-zip _stage-world ## Build data + runtime images for all arches and push
+dist: _stage-zip _stage-overrides ## Build data + runtime images for all arches and push
 	docker buildx build --target data    $(BUILD_ARGS) \
 		--platform linux/amd64,linux/arm64 \
 		-t $(IMAGE_DATA):$(TAG) \

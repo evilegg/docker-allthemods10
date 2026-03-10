@@ -50,6 +50,10 @@ LABEL version="${SERVER_VERSION}"
 
 COPY --from=installer /opt/server /opt/server
 
+# .build/overrides/ is staged by the Makefile from the local overrides/ directory.
+# Its contents are overlaid onto /data at seed time by seed.sh.
+COPY .build/overrides/ /opt/overrides/
+
 COPY seed.sh /seed.sh
 RUN chmod +x /seed.sh
 
