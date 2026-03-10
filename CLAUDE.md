@@ -23,6 +23,7 @@ The init container runs once and exits; the server container starts after it com
 | -------------------- | --------------------------------------------------------------------------------- |
 | `Dockerfile`         | Multi-stage build: `installer` → `data`, `installer` → `runtime`                  |
 | `launch.sh`          | Runtime entrypoint — applies env overrides, manages whitelist/ops, execs `run.sh` |
+| `world.sh`           | Host-side CLI for world management (push / reset / pull)                          |
 | `Makefile`           | Build automation; `make 10-X.Y` builds both images for local arch                 |
 | `download-urls.mk`   | CDN fallback URLs keyed by FILE_ID (fill in before building without local cache)  |
 | `docker-compose.yml` | Compose file wiring init + server containers                                      |
@@ -79,6 +80,34 @@ make all          # build default version (currently 6.1) for local arch
 make dist         # build + push default version for all arches
 make help         # list all targets
 ```
+
+## World Management (world.sh)
+
+`world.sh` is a host-side CLI that operates on the Docker data volume via throwaway Alpine containers.
+It stops the server automatically before destructive operations.
+
+```
+./world.sh push <dir>          # Copy a local world dir into /data/world (stops server)
+./world.sh reset               # Delete all world/DIM dirs from the volume (stops server)
+./world.sh pull [file.tar.gz]  # Archive world dirs to a local .tar.gz (stops server)
+```
+
+Options: `--volume <name>`, `--project <name>`, `--restart`
+
+The volume name is auto-detected from `docker compose config`.
+`pull` will prefer the latest `.zip` from `/data/backups/` if a backup mod is present
+(see: TODO evaluate FTB Backups 2 for ATM10).
+
+### Build-time world bundling
+
+Pass `WORLD_DIR` to include a world in the data image:
+
+```
+make WORLD_DIR=./saves/my-world all
+```
+
+The Makefile stages it into `.build/world/` (gitignored).
+The data image CMD seeds `/data/world` from it on first run if no world is present.
 
 ## Notes
 
