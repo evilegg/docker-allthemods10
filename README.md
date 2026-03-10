@@ -1,10 +1,14 @@
 # All the Mods 10 — Docker Server
 
 Docker image set for a headless [All the Mods 10](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) Minecraft server.
-Designed for [Unraid](https://unraid.net) (uid 99 / gid 100), but usable anywhere with a persistent `/data` volume.
+Forked from [W3LFARe/docker-allthemods10](https://github.com/W3LFARe/docker-allthemods10) which was designed for [Unraid](https://unraid.net) (uid 99 / gid 100).
 
-> **Template note:** This repo is an instance of a generic NeoForge modpack template.
-> To host a different CurseForge modpack, fork this repo and edit `pack.conf` and `versions.conf` — nothing else needs to change.
+This setup is usable more broadly and takes advantage of a persistent `/data` volume.
+It also uses a layered image approach to reduce the need to re-run the installation but does so without hosting any files itself.
+
+> [!NOTE]
+> This repo is meant to as a generic template for NeoForge modpacks hosted on curseforge.
+> To target a different CurseForge modpack, fork this repo and edit `pack.conf` and `versions.conf` to point to the versions and zip files associated with the modpack — nothing else needs to change.
 
 ## How it works
 
@@ -15,8 +19,7 @@ Two images are built per version:
 | `evilegg/all-the-mods-data:<version>` | Init container — seeds a named volume with the pre-installed NeoForge server |
 | `evilegg/all-the-mods:<version>`      | Runtime — lightweight Java + entrypoint script, mounts the seeded volume     |
 
-On first start, `docker compose up` runs the init container once to copy the
-pre-built server files into the persistent volume, then starts the server container.
+On first start, `docker compose up` runs the init container once to copy the pre-built server files into the persistent volume, then starts the server container.
 Subsequent starts skip the copy and go straight to launching the server.
 
 ## Quick start
@@ -69,8 +72,7 @@ make help          # list all available targets
 All version metadata lives in `versions.conf` — no other file needs to change.
 
 **1. Find the new release on CurseForge.**
-Open the [ATM10 files page](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10/files)
-and click the new release.
+Open the [ATM10 files page](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10/files) and click the new release.
 Note the file ID from the URL and the direct download link for `Server-Files-X.Y.zip`.
 The NeoForge version is listed on the same page under _Relations → Dependencies_.
 
@@ -127,8 +129,7 @@ docker compose down -v
 docker compose up
 ```
 
-To keep world data but force a fresh server install, delete `libraries/` inside
-the volume — the init container will re-copy everything on next start.
+To keep world data but force a fresh server install, delete `libraries/` inside the volume — the init container will re-copy everything on next start.
 
 ## Volumes and ports
 
