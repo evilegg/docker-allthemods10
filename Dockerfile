@@ -50,8 +50,14 @@ LABEL version="${SERVER_VERSION}"
 
 COPY --from=installer /opt/server /opt/server
 
-# Idempotent seed: only copies if the volume is empty (no libraries/ dir).
-CMD ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
+# .build/overrides/ is staged by the Makefile from the local overrides/ directory.
+# Its contents are overlaid onto /data at seed time by seed.sh.
+COPY .build/overrides/ /opt/overrides/
+
+COPY seed.sh /seed.sh
+RUN chmod +x /seed.sh
+
+CMD ["/seed.sh"]
 
 # ── runtime image ─────────────────────────────────────────────────────────────
 # Lightweight server container: just Java + launch.sh.

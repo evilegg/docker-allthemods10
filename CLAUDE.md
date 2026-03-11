@@ -22,16 +22,19 @@ The init container runs once and exits; the server container starts after it com
 | File                 | Role                                                                              |
 | -------------------- | --------------------------------------------------------------------------------- |
 | `Dockerfile`         | Multi-stage build: `installer` → `data`, `installer` → `runtime`                  |
+| `seed.sh`            | Data image entrypoint — seeds `/data`, then overlays `overrides/`                 |
 | `launch.sh`          | Runtime entrypoint — applies env overrides, manages whitelist/ops, execs `run.sh` |
+| `world.sh`           | Host-side CLI for world management (push / reset / pull)                          |
 | `Makefile`           | Build automation; `make 10-X.Y` builds both images for local arch                 |
 | `download-urls.mk`   | CDN fallback URLs keyed by FILE_ID (fill in before building without local cache)  |
 | `docker-compose.yml` | Compose file wiring init + server containers                                      |
 | `curseforge.com/`    | **Pre-cached** modpack archives (gitignored; see below)                           |
+| `overrides/`         | **Build-time file injection** (gitignored; see below)                             |
 
 ## Dockerfile Stages
 
 - **`installer`** — runs NeoForge installer inside `eclipse-temurin:21-jdk`; produces `/opt/server/`
-- **`data`** (`--target data`) — Alpine base, ships `/opt/server/`; CMD seeds `/data` if empty
+- **`data`** (`--target data`) — Alpine base, ships `/opt/server/` and `/opt/overrides/`; `seed.sh` seeds `/data` then overlays overrides
 - **`runtime`** (`--target runtime`) — `eclipse-temurin:21-jdk` + curl/jq + `launch.sh`; no server files
 
 ## Pre-Cached Files
@@ -79,6 +82,42 @@ make all          # build default version (currently 6.1) for local arch
 make dist         # build + push default version for all arches
 make help         # list all targets
 ```
+
+## World Management (world.sh)
+
+`world.sh` is a host-side CLI that operates on the Docker data volume via throwaway Alpine containers.
+It stops the server automatically before destructive operations.
+
+```
+./world.sh push <dir>          # Copy a local world dir into /data/world (stops server)
+./world.sh reset               # Delete all world/DIM dirs from the volume (stops server)
+./world.sh pull [file.tar.gz]  # Archive world dirs to a local .tar.gz (stops server)
+```
+
+Options: `--volume <name>`, `--project <name>`, `--restart`
+
+The volume name is auto-detected from `docker compose config`.
+`pull` will prefer the latest `.zip` from `/data/backups/` if a backup mod is present
+(see: TODO evaluate FTB Backups 2 for ATM10).
+
+### Build-time file injection (overrides/)
+
+Place files under `overrides/` to inject them into `/data` at seed time.
+The directory structure is preserved:
+
+```
+overrides/world/           → /data/world/
+overrides/mods/extra.jar   → /data/mods/extra.jar
+overrides/server.properties → /data/server.properties
+```
+
+The Makefile stages `overrides/` into `.build/overrides/` before every build.
+`seed.sh` overlays `/opt/overrides/` onto `/data/` after seeding the server files.
+
+By default, existing files in `/data/` are overwritten and a warning is logged.
+Set `OVERRIDES_NOCLOBBER=true` on the init container to skip existing files instead.
+
+`overrides/` is gitignored — it may contain large world saves or binary mods.
 
 ## Notes
 
