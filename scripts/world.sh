@@ -29,7 +29,7 @@ Options:
   --restart               Restart the server container after push or reset
   -h, --help, --usage     Show this help and exit
 EOF
-    exit 1
+    exit 0
 }
 
 die() { echo "ERROR: $*" >&2; exit 1; }

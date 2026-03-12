@@ -23,11 +23,11 @@ EOF
     exit 0
 }
 
-set -e
-
 case "${1:-}" in
     -h | --help | --usage) usage ;;
 esac
+
+set -e
 
 # Seed server files into /data if the volume is empty (no libraries/ dir).
 if [ ! -d /data/libraries ]; then
