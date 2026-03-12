@@ -49,6 +49,13 @@ cleanup() {
 # Always clean up on exit so fixture files and volumes don't linger.
 trap cleanup EXIT
 
+# ── preflight ─────────────────────────────────────────────────────────────────
+
+if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Docker daemon is not running. Start Docker (or colima) and retry." >&2
+    exit 1
+fi
+
 # ── test 1 & 2: build ─────────────────────────────────────────────────────────
 
 if [ "$SKIP_BUILD" = false ]; then
