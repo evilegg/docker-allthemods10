@@ -23,7 +23,7 @@ BUILD_ARGS = \
 	--build-arg JAVA_VERSION=$(JAVA_VERSION) \
 	--build-arg DOWNLOAD_URL=$(CDN_URL)
 
-.PHONY: all dist test help compose-env _stage-zip _stage-overrides
+.PHONY: all dist test help compose-env quick-start _stage-zip _stage-overrides
 
 # Stage the server zip into .build/ before every build.
 # Copies from local cache if present; otherwise creates an empty placeholder
@@ -49,6 +49,9 @@ _stage-overrides:
 	else \
 		echo "No overrides/ directory; data image will include no overrides"; \
 	fi
+
+quick-start: all compose-env ## Build images, write .env, and start the server
+	docker compose up
 
 test: all ## Build images then run integration tests (overrides/ feature)
 	./scripts/test.sh --skip-build

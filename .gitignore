@@ -1,7 +1,9 @@
 .build/
+data/
 overrides/
 world-*.tar.gz
 .tmp_msg
 .env
 curseforge.com/
 versions.mk
+.DS_Store
