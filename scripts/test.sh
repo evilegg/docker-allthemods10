@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test.sh — integration tests for the overrides/ build-time injection feature
 #
-# Covers all items in the PR #3 test plan:
+# Covers:
 #   1. make all builds cleanly with no overrides/ directory
 #   2. make all with populated overrides/ bundles files into the data image
 #   3. Init container seeds /data correctly on a fresh volume
@@ -11,10 +11,26 @@
 #   7. Re-running on an already-seeded volume is a no-op for server files
 #
 # Usage:
-#   ./test.sh [--skip-build]
+#   ./scripts/test.sh [options]
 #
-#   --skip-build   Skip tests 1 & 2 (assumes images are already built).
-#                  Useful when iterating on container behaviour only.
+# Options:
+#   --skip-build        Skip tests 1 & 2 (assumes images are already built).
+#                       Useful when iterating on container behaviour only.
+#   -h, --help, --usage Show this help and exit
+
+usage() {
+    cat >&2 <<'EOF'
+Usage:
+  ./scripts/test.sh [options]
+
+Runs integration tests for the overrides/ build-time injection feature.
+
+Options:
+  --skip-build        Skip build tests (assumes images are already built)
+  -h, --help, --usage Show this help and exit
+EOF
+    exit 0
+}
 
 set -euo pipefail
 
@@ -24,10 +40,11 @@ IMAGE_DATA="evilegg/all-the-mods-data:6.1"
 TEST_VOL="atm10-overrides-test"
 SKIP_BUILD=false
 
-for arg in "$@"; do
-    case "$arg" in
-        --skip-build) SKIP_BUILD=true ;;
-        *) echo "Unknown argument: $arg" >&2; exit 1 ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-build)       SKIP_BUILD=true; shift ;;
+        -h | --help | --usage) usage ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
     esac
 done
 
