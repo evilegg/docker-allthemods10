@@ -54,7 +54,7 @@ COPY --from=installer /opt/server /opt/server
 # Its contents are overlaid onto /data at seed time by seed.sh.
 COPY .build/overrides/ /opt/overrides/
 
-COPY seed.sh /seed.sh
+COPY scripts/seed.sh /seed.sh
 RUN chmod +x /seed.sh
 
 CMD ["/seed.sh"]
@@ -70,7 +70,7 @@ LABEL version="${SERVER_VERSION}"
 RUN apt-get update && apt-get install -y curl jq && \
     adduser --uid 99 --gid 100 --home /data --disabled-password minecraft
 
-COPY launch.sh /launch.sh
+COPY scripts/launch.sh /launch.sh
 RUN chmod +x /launch.sh
 
 USER minecraft
