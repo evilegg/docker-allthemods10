@@ -8,19 +8,11 @@ It also uses a layered image approach to reduce the need to re-run the installat
 
 ## Quick start
 
-1. Build images for the current default version
-   ```bash
-   make
-   ```
-2. Write `.env` so `docker-compose.yml` knows which images to use
-   ```bash
-   make compose-env
-   ```
-3. Start the server (seeds the volume on first run)
-   ```bash
-   docker compose up
-   ```
+```bash
+make quick-start
+```
 
+Builds the images, writes `.env`, and starts the server.
 The server will be reachable on port `25565`.
 
 > [!NOTE]
@@ -61,6 +53,7 @@ Set at minimum `EULA: "true"` in the `server` service environment.
 ## Build targets
 
 ```
+make quick-start   # build images, write .env, and start the server (one-shot setup)
 make               # build data + runtime images for the default version (local arch)
 make compose-env   # write .env from current pack.conf + default version
 make dist          # build + push for linux/amd64 and linux/arm64
