@@ -2,14 +2,15 @@
 # world.sh — manage /data/world inside the Docker data volume
 #
 # Usage:
-#   ./world.sh push <dir>          Copy a local world directory into the volume
-#   ./world.sh reset               Delete all world/DIM directories from the volume
-#   ./world.sh pull [file.tar.gz]  Archive the world directories from the volume
+#   ./scripts/world.sh push <dir>          Copy a local world directory into the volume
+#   ./scripts/world.sh reset               Delete all world/DIM directories from the volume
+#   ./scripts/world.sh pull [file.tar.gz]  Archive the world directories from the volume
 #
 # Options:
-#   --volume <name>   Override the Docker volume name (default: auto-detected)
-#   --restart         Restart the server container after push or reset
-#   --project <name>  Override the Compose project name for volume detection
+#   --volume <name>         Override the Docker volume name (default: auto-detected)
+#   --restart               Restart the server container after push or reset
+#   --project <name>        Override the Compose project name for volume detection
+#   -h, --help, --usage     Show this help and exit
 
 set -euo pipefail
 
@@ -18,16 +19,17 @@ set -euo pipefail
 usage() {
     cat >&2 <<'EOF'
 Usage:
-  ./world.sh push <dir>          Copy a local world dir into the data volume
-  ./world.sh reset               Delete all world/DIM dirs from the data volume
-  ./world.sh pull [file.tar.gz]  Archive the world dirs from the data volume to a local file
+  ./scripts/world.sh push <dir>          Copy a local world dir into the data volume
+  ./scripts/world.sh reset               Delete all world/DIM dirs from the data volume
+  ./scripts/world.sh pull [file.tar.gz]  Archive the world dirs from the data volume to a local file
 
 Options:
-  --volume <name>    Override the detected Docker volume name
-  --project <name>   Override the Compose project name used for volume detection
-  --restart          Restart the server container after push or reset
+  --volume <name>         Override the detected Docker volume name
+  --project <name>        Override the Compose project name used for volume detection
+  --restart               Restart the server container after push or reset
+  -h, --help, --usage     Show this help and exit
 EOF
-    exit 1
+    exit 0
 }
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -96,7 +98,7 @@ while [[ $# -gt 0 ]]; do
             SUBARGS=("$@")
             break
             ;;
-        -h|--help) usage ;;
+        -h | --help | --usage) usage ;;
         *) die "Unknown argument: $1" ;;
     esac
 done

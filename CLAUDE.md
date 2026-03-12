@@ -22,9 +22,10 @@ The init container runs once and exits; the server container starts after it com
 | File                 | Role                                                                              |
 | -------------------- | --------------------------------------------------------------------------------- |
 | `Dockerfile`         | Multi-stage build: `installer` → `data`, `installer` → `runtime`                  |
-| `seed.sh`            | Data image entrypoint — seeds `/data`, then overlays `overrides/`                 |
-| `launch.sh`          | Runtime entrypoint — applies env overrides, manages whitelist/ops, execs `run.sh` |
-| `world.sh`           | Host-side CLI for world management (push / reset / pull)                          |
+| `scripts/seed.sh`    | Data image entrypoint — seeds `/data`, then overlays `overrides/`                 |
+| `scripts/launch.sh`  | Runtime entrypoint — applies env overrides, manages whitelist/ops, execs `run.sh` |
+| `scripts/world.sh`   | Host-side CLI for world management (push / reset / pull)                          |
+| `scripts/test.sh`    | Integration tests for the overrides/ feature                                      |
 | `Makefile`           | Build automation; `make 10-X.Y` builds both images for local arch                 |
 | `download-urls.mk`   | CDN fallback URLs keyed by FILE_ID (fill in before building without local cache)  |
 | `docker-compose.yml` | Compose file wiring init + server containers                                      |
@@ -83,15 +84,15 @@ make dist         # build + push default version for all arches
 make help         # list all targets
 ```
 
-## World Management (world.sh)
+## World Management (scripts/world.sh)
 
-`world.sh` is a host-side CLI that operates on the Docker data volume via throwaway Alpine containers.
+`scripts/world.sh` is a host-side CLI that operates on the Docker data volume via throwaway Alpine containers.
 It stops the server automatically before destructive operations.
 
 ```
-./world.sh push <dir>          # Copy a local world dir into /data/world (stops server)
-./world.sh reset               # Delete all world/DIM dirs from the volume (stops server)
-./world.sh pull [file.tar.gz]  # Archive world dirs to a local .tar.gz (stops server)
+./scripts/world.sh push <dir>          # Copy a local world dir into /data/world (stops server)
+./scripts/world.sh reset               # Delete all world/DIM dirs from the volume (stops server)
+./scripts/world.sh pull [file.tar.gz]  # Archive world dirs to a local .tar.gz (stops server)
 ```
 
 Options: `--volume <name>`, `--project <name>`, `--restart`
@@ -118,6 +119,18 @@ By default, existing files in `/data/` are overwritten and a warning is logged.
 Set `OVERRIDES_NOCLOBBER=true` on the init container to skip existing files instead.
 
 `overrides/` is gitignored — it may contain large world saves or binary mods.
+
+## scripts/ Convention
+
+All helper scripts live in `scripts/`.
+Every script must follow this interface:
+
+- **Header comment** — first lines after `#!/...` document purpose, usage, and options in the same format as the existing scripts.
+- **`usage()` function** — prints `Usage:` block to stderr via `cat >&2 <<'EOF' ... EOF`, then exits 0 (for `--help`) or 1 (for invalid invocation).
+- **`-h | --help | --usage`** — handled in argument parsing before any side effects.
+
+Container entrypoints (`seed.sh`, `launch.sh`) use `case "${1:-}" in` before `set -e`/`set -x` so the flag is checked without interference from strict-mode exits.
+Host-side scripts (`world.sh`, `test.sh`) use a `while [[ $# -gt 0 ]]; do case "$1" in` loop.
 
 ## Notes
 

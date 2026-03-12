@@ -51,7 +51,7 @@ _stage-overrides:
 	fi
 
 test: all ## Build images then run integration tests (overrides/ feature)
-	./test.sh --skip-build
+	./scripts/test.sh --skip-build
 
 all: _stage-zip _stage-overrides ## Build data + runtime images for local architecture
 	docker build --target data    $(BUILD_ARGS) -t $(IMAGE_DATA):$(TAG) .

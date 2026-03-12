@@ -1,4 +1,53 @@
 #!/bin/bash
+# launch.sh — runtime container entrypoint; applies env overrides then execs the server
+#
+# Usage:
+#   /launch.sh [command]
+#
+# Options:
+#   -h, --help, --usage   Show this help and exit
+#
+# Environment:
+#   EULA=true               Required; server exits with code 99 without it
+#   JVM_OPTS                JVM memory flags (e.g. -Xms2048m -Xmx4096m)
+#   MOTD                    Server description string
+#   ALLOW_FLIGHT            true/false
+#   MAX_PLAYERS             Integer
+#   ONLINE_MODE             true/false
+#   ENABLE_WHITELIST        true/false
+#   WHITELIST_USERS         Comma-separated Minecraft usernames to whitelist
+#   OP_USERS                Comma-separated Minecraft usernames to op
+
+usage() {
+    cat >&2 <<'EOF'
+Usage:
+  /launch.sh [command]
+
+Applies environment-variable overrides to server config, populates
+whitelist.json and ops.json via playerdb.co UUID lookups, then execs
+the given command (default: ./run.sh) as PID 1.
+
+Options:
+  -h, --help, --usage   Show this help and exit
+
+Environment:
+  EULA=true               Required; server exits with code 99 without it
+  JVM_OPTS                JVM memory flags (e.g. -Xms2048m -Xmx4096m)
+  MOTD                    Server description string
+  ALLOW_FLIGHT            true/false
+  MAX_PLAYERS             Integer
+  ONLINE_MODE             true/false
+  ENABLE_WHITELIST        true/false
+  WHITELIST_USERS         Comma-separated Minecraft usernames to whitelist
+  OP_USERS                Comma-separated Minecraft usernames to op
+EOF
+    exit 0
+}
+
+case "${1:-}" in
+    -h | --help | --usage) usage ;;
+esac
+
 set -x
 
 cd /data

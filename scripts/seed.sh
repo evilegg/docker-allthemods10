@@ -1,4 +1,32 @@
 #!/bin/sh
+# seed.sh — data image entrypoint; seeds /data then overlays overrides/
+#
+# Usage:
+#   /seed.sh
+#
+# Environment:
+#   OVERRIDES_NOCLOBBER=true   Skip files that already exist in /data.
+#                              Default behaviour is to overwrite and log a warning.
+
+usage() {
+    cat >&2 <<'EOF'
+Usage:
+  /seed.sh
+
+Seeds /data from /opt/server if not already seeded, then overlays any files
+from /opt/overrides/ onto /data.
+
+Environment:
+  OVERRIDES_NOCLOBBER=true   Skip files that already exist in /data.
+                             Default: overwrite and log a warning.
+EOF
+    exit 0
+}
+
+case "${1:-}" in
+    -h | --help | --usage) usage ;;
+esac
+
 set -e
 
 # Seed server files into /data if the volume is empty (no libraries/ dir).
