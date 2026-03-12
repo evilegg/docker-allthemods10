@@ -4,8 +4,8 @@
 # Run `make compose-env` once after building, then `docker compose up`.
 #
 # Usage:
-#   make && make compose-env   # build images and write .env
-#   docker compose up          # seeds volume on first run, then starts server
+#   make && make compose-env          # build images and write .env
+#   EULA=true docker compose up       # seeds volume on first run, then starts server
 #   docker compose down        # stop (volume persists)
 #   docker compose down -v     # stop and wipe world data
 
@@ -30,7 +30,7 @@ services:
     ports:
       - "25565:25565"
     environment:
-      EULA: "true"
+      EULA: ${EULA:?EULA must be set to 'true' to accept the Minecraft EULA}
       # JVM_OPTS: "-Xms4096m -Xmx8192m"
       # MOTD: "My Server"
       # MAX_PLAYERS: "10"
