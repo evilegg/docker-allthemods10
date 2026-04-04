@@ -52,10 +52,10 @@ set -x
 
 cd /data
 
-if ! [[ "$EULA" = "false" ]]; then
+if [[ "$EULA" = "true" ]]; then
     echo "eula=true" > eula.txt
 else
-    echo "You must accept the EULA to install."
+    echo "ERROR: Set EULA=true to accept the Minecraft EULA." >&2
     exit 99
 fi
 
