@@ -14,8 +14,10 @@ TAG              ?= $(SERVER_VERSION)
 
 CDN_URL := $(DOWNLOAD_URL_$(FILE_ID))
 
-# Local pre-cached zip (not required; skipped in CI)
-LOCAL_ZIP := curseforge.com/minecraft/modpacks/$(PACK_SLUG)/files/$(FILE_ID)/Server-Files-$(SERVER_VERSION).zip
+# Local pre-cached zip (not required; skipped in CI).
+# FILE_ID is the server pack file ID. Drop any .zip into the directory and it
+# will be picked up regardless of filename.
+LOCAL_ZIP := $(firstword $(wildcard curseforge.com/minecraft/modpacks/$(PACK_SLUG)/files/$(FILE_ID)/*.zip))
 
 BUILD_ARGS = \
 	--build-arg SERVER_VERSION=$(SERVER_VERSION) \
@@ -71,8 +73,20 @@ dist: _stage-zip _stage-overrides ## Build data + runtime images for all arches 
 		--push .
 
 compose-env: ## Write .env for docker-compose.yml from current pack + default version
-	@printf 'IMAGE=%s\nIMAGE_DATA=%s\nTAG=%s\n' \
-		'$(IMAGE)' '$(IMAGE_DATA)' '$(TAG)' > .env
+	@EULA=$$(grep '^EULA=' .env 2>/dev/null | cut -d= -f2-); \
+	 JVM_OPTS=$$(grep '^JVM_OPTS=' .env 2>/dev/null | cut -d= -f2-); \
+	 MOTD=$$(grep '^MOTD=' .env 2>/dev/null | cut -d= -f2-); \
+	 ALLOW_FLIGHT=$$(grep '^ALLOW_FLIGHT=' .env 2>/dev/null | cut -d= -f2-); \
+	 MAX_PLAYERS=$$(grep '^MAX_PLAYERS=' .env 2>/dev/null | cut -d= -f2-); \
+	 ONLINE_MODE=$$(grep '^ONLINE_MODE=' .env 2>/dev/null | cut -d= -f2-); \
+	 ENABLE_WHITELIST=$$(grep '^ENABLE_WHITELIST=' .env 2>/dev/null | cut -d= -f2-); \
+	 WHITELIST_USERS=$$(grep '^WHITELIST_USERS=' .env 2>/dev/null | cut -d= -f2-); \
+	 OP_USERS=$$(grep '^OP_USERS=' .env 2>/dev/null | cut -d= -f2-); \
+	 printf 'IMAGE=%s\nIMAGE_DATA=%s\nTAG=%s\n\n# Runtime — edit values here (.env is gitignored)\nEULA=%s\nJVM_OPTS=%s\nMOTD=%s\nALLOW_FLIGHT=%s\nMAX_PLAYERS=%s\nONLINE_MODE=%s\nENABLE_WHITELIST=%s\nWHITELIST_USERS=%s\nOP_USERS=%s\n' \
+	   '$(IMAGE)' '$(IMAGE_DATA)' '$(TAG)' \
+	   "$${EULA}" "$${JVM_OPTS}" "$${MOTD}" "$${ALLOW_FLIGHT}" \
+	   "$${MAX_PLAYERS}" "$${ONLINE_MODE}" "$${ENABLE_WHITELIST}" \
+	   "$${WHITELIST_USERS}" "$${OP_USERS}" > .env
 	@echo "Wrote .env (IMAGE=$(IMAGE), IMAGE_DATA=$(IMAGE_DATA), TAG=$(TAG))"
 
 help: ## Show this help
