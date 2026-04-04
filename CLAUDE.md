@@ -46,11 +46,12 @@ Locally cached server zips live under:
 curseforge.com/minecraft/modpacks/all-the-mods-10/files/<file-id>/
 ```
 
-| Version | File ID | Server Zip               |
-| ------- | ------- | ------------------------ |
-| 5.5     | 7558573 | `Server-Files-5.5.zip`   |
-| 6.0.1   | 7676054 | `Server-Files-6.0.1.zip` |
-| 6.1     | 7722629 | `Server-Files-6.1.zip`   |
+| Version | Server Pack File ID | Server Zip                                             |
+| ------- | ------------------- | ------------------------------------------------------ |
+| 5.5     | 7558613             | `ServerFiles-5.5.zip`                                  |
+| 6.0.1   | 7679065             | `ServerFiles-6.0.1.zip`                                |
+| 6.1     | 7722634             | `ServerFiles-6.1.zip`                                  |
+| 6.2.1   | 7807057             | `ServerFiles-6.2.zip` (no dedicated 6.2.1 server pack) |
 
 ## How launch.sh Works (Runtime)
 
