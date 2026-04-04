@@ -18,7 +18,7 @@ services:
     volumes:
       - data:/data
     # Idempotent: only copies server files if libraries/ is absent.
-    command: ["sh", "-c", "[ -d /data/libraries ] || cp -r /opt/server/. /data/"]
+    command: ["sh", "-c", "[ -d /data/libraries ] && echo 'Volume already seeded, skipping.' || { echo 'Seeding volume...'; cp -r /opt/server/. /data/; echo 'Done.'; }"]
 
   server:
     image: ${IMAGE}:${TAG}
@@ -31,13 +31,14 @@ services:
       - "25565:25565"
     environment:
       EULA: ${EULA:?EULA must be set to 'true' to accept the Minecraft EULA}
-      # JVM_OPTS: "-Xms4096m -Xmx8192m"
-      # MOTD: "My Server"
-      # MAX_PLAYERS: "10"
-      # ONLINE_MODE: "true"
-      # ENABLE_WHITELIST: "true"
-      # WHITELIST_USERS: "Player1, Player2"
-      # OP_USERS: "Player1"
+      JVM_OPTS: ${JVM_OPTS:-}
+      MOTD: ${MOTD:-}
+      ALLOW_FLIGHT: ${ALLOW_FLIGHT:-}
+      MAX_PLAYERS: ${MAX_PLAYERS:-}
+      ONLINE_MODE: ${ONLINE_MODE:-}
+      ENABLE_WHITELIST: ${ENABLE_WHITELIST:-}
+      WHITELIST_USERS: ${WHITELIST_USERS:-}
+      OP_USERS: ${OP_USERS:-}
     restart: unless-stopped
 
 volumes:
